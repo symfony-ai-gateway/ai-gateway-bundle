@@ -1,0 +1,216 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — Requests{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div>
+        <h1 class="page-title">Requests</h1>
+        <div class="subtitle">Full request history with filters for provider, model alias, API key, team, and status family.</div>
+    </div>
+</div>
+
+<div class="card section">
+    <form method="GET" action="/dashboard/requests" class="filters">
+        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+        <div class="field">
+            <label>Provider</label>
+            <select name="provider">
+                <option value="">All providers</option>
+                {% for provider in providers %}
+                    <option value="{{ provider.name }}" {{ filters.provider == provider.name ? 'selected' : '' }}>{{ provider.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Model Alias</label>
+            <select name="model">
+                <option value="">All models</option>
+                {% for model in models %}
+                    <option value="{{ model.alias }}" {{ filters.model == model.alias ? 'selected' : '' }}>{{ model.alias }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>API Key</label>
+            <select name="key_id">
+                <option value="">All keys</option>
+                {% for key in keys %}
+                    <option value="{{ key.id }}" {{ filters.key_id == key.id ~ '' ? 'selected' : '' }}>{{ key.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Team</label>
+            <select name="team_id">
+                <option value="">All teams</option>
+                {% for team in teams %}
+                    <option value="{{ team.id }}" {{ filters.team_id == team.id ~ '' ? 'selected' : '' }}>{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All statuses</option>
+                <option value="2xx" {{ filters.status == '2xx' ? 'selected' : '' }}>2xx</option>
+                <option value="4xx" {{ filters.status == '4xx' ? 'selected' : '' }}>4xx</option>
+                <option value="5xx" {{ filters.status == '5xx' ? 'selected' : '' }}>5xx</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>From date</label>
+            <input type="date" name="from_date" value="{{ filters.from_date }}">
+        </div>
+        <div class="field">
+            <label>To date</label>
+            <input type="date" name="to_date" value="{{ filters.to_date }}">
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end;gap:8px">
+            <button type="submit" class="btn btn-primary">Apply filters</button>
+            <a href="{{ dash.turl('/dashboard/requests', dashboard_token|default('')) }}" class="btn" style="background:var(--surface2);color:var(--text)">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="metric-grid section">
+    <div class="card"><h3>Requests</h3><div class="value blue">{{ stats.total_requests|number_format }}</div></div>
+    <div class="card"><h3>Errors</h3><div class="value {% if stats.total_errors > 0 %}red{% else %}green{% endif %}">{{ stats.total_errors|number_format }}</div></div>
+    <div class="card"><h3>Tokens</h3><div class="value green">{{ (stats.total_prompt_tokens + stats.total_completion_tokens)|number_format }}</div></div>
+    <div class="card"><h3>Cost</h3><div class="value yellow">${{ stats.total_cost|number_format(4) }}</div></div>
+    <div class="card"><h3>Avg Duration</h3><div class="value" style="color:var(--accent2)">{{ stats.avg_duration_ms|number_format(1) }}ms</div></div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Daily activity</h3>
+        {% set requests_daily_max = daily_usage|length ? max(daily_usage|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in daily_usage %}
+                <div class="chart-row">
+                    <div class="chart-label mono">{{ row.date }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ requests_daily_max > 0 ? (row.requests / requests_daily_max * 100) : 0 }}%;"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }} req · ${{ row.cost|number_format(2) }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No activity yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Status distribution</h3>
+        {% set requests_status_max = status_breakdown|length ? max(status_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in status_breakdown %}
+                {% set status_color = row.family starts with '2' ? 'var(--success)' : (row.family starts with '4' ? 'var(--warning)' : (row.family starts with '5' ? 'var(--danger)' : 'var(--primary)')) %}
+                <div class="chart-row">
+                    <div class="chart-label"><span class="badge badge-blue">{{ row.family }}</span></div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ requests_status_max > 0 ? (row.requests / requests_status_max * 100) : 0 }}%; --bar-color: {{ status_color }};"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No status data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Requests by provider</h3>
+        {% set requests_provider_max = provider_breakdown|length ? max(provider_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in provider_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ requests_provider_max > 0 ? (row.requests / requests_provider_max * 100) : 0 }}%; --bar-color: var(--info);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No provider data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Requests by model alias</h3>
+        {% set requests_model_max = model_breakdown|length ? max(model_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in model_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ requests_model_max > 0 ? (row.requests / requests_model_max * 100) : 0 }}%; --bar-color: var(--primary);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No model data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Top API keys</h3>
+        {% set requests_key_max = key_breakdown|length ? max(key_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in key_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.key_name ?: 'anonymous' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ requests_key_max > 0 ? (row.requests / requests_key_max * 100) : 0 }}%; --bar-color: var(--warning);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No key data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Top teams</h3>
+        {% set requests_team_max = team_breakdown|length ? max(team_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in team_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.team_name ?: 'No team' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ requests_team_max > 0 ? (row.requests / requests_team_max * 100) : 0 }}%; --bar-color: var(--success);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No team data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Request log</h2>
+    <div class="card table-card">
+        <div class="table-scroll">
+        <table class="wide-table">
+            <thead><tr><th>Time</th><th>Alias</th><th>Resolved Model</th><th>Provider</th><th>API Key</th><th>Team</th><th>Prompt</th><th>Completion</th><th>Total</th><th>Cost</th><th>Duration</th><th>Status</th><th>Error</th></tr></thead>
+            <tbody>
+            {% for log in logs %}
+                <tr>
+                    <td class="mono">{{ log.created_at|date('Y-m-d H:i:s') }}</td>
+                    <td>{{ log.model_alias }}</td>
+                    <td class="mono">{{ log.resolved_model ?: '—' }}</td>
+                    <td>{{ log.provider_name }}</td>
+                    <td>{% if log.key_id %}<a href="{{ dash.turl('/dashboard/keys/' ~ log.key_id, dashboard_token|default('')) }}">{{ log.key_name ?: 'anonymous' }}</a>{% else %}<span class="muted">anonymous</span>{% endif %}</td>
+                    <td>{% if log.team_id %}<a href="{{ dash.turl('/dashboard/teams/' ~ log.team_id, dashboard_token|default('')) }}">{{ log.team_name ?: 'team #' ~ log.team_id }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{{ log.prompt_tokens|number_format }}</td>
+                    <td>{{ log.completion_tokens|number_format }}</td>
+                    <td>{{ log.total_tokens|number_format }}</td>
+                    <td style="color:var(--yellow)">${{ log.cost_usd|number_format(6) }}</td>
+                    <td>{{ log.duration_ms ?: 0 }}ms</td>
+                    <td>{% if log.status_code >= 500 %}<span class="badge badge-red">{{ log.status_code }}</span>{% elseif log.status_code >= 400 %}<span class="badge badge-yellow">{{ log.status_code }}</span>{% else %}<span class="badge badge-green">{{ log.status_code }}</span>{% endif %}</td>
+                    <td class="mono" style="max-width:260px;white-space:normal;color:var(--text2)">{{ log.error ?: '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="13" style="padding:16px" class="muted">No matching requests.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

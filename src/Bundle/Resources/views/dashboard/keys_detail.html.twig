@@ -1,0 +1,172 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — Key {{ key.name }}{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div>
+        <h1 class="page-title">Key: {{ key.name }}</h1>
+        <div class="subtitle">Per-key cost, volume, model/provider usage, and team attribution.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+        <a href="{{ dash.turl('/dashboard/keys/' ~ key.id ~ '/edit', dashboard_token|default('')) }}" class="btn" style="background:var(--surface2);color:var(--text)">Edit</a>
+        <form method="POST" action="{{ dash.turl('/dashboard/keys/' ~ key.id ~ '/regenerate', dashboard_token|default('')) }}" onsubmit="return confirm('Regenerate the token for this key? The current token will stop working immediately.')">
+            <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+            <button type="submit" class="btn" style="background:var(--surface2);color:var(--text)">Regenerate</button>
+        </form>
+        <form method="POST" action="{{ dash.turl('/dashboard/keys/' ~ key.id ~ '/revoke', dashboard_token|default('')) }}" onsubmit="return confirm('Revoke this key?')">
+            <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+            <button type="submit" class="btn btn-danger">Revoke</button>
+        </form>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="card"><h3>Total Requests</h3><div class="value blue">{{ key_stats.requests|number_format }}</div></div>
+    <div class="card"><h3>Total Tokens</h3><div class="value green">{{ key_stats.tokens|number_format }}</div></div>
+    <div class="card"><h3>Total Cost</h3><div class="value yellow">${{ key_stats.cost|number_format(4) }}</div></div>
+    <div class="card"><h3>Errors</h3><div class="value {% if key_stats.errors > 0 %}red{% else %}green{% endif %}">{{ key_stats.errors|number_format }}</div></div>
+    <div class="card"><h3>Avg Duration</h3><div class="value" style="color:var(--accent2)">{{ key_stats.avg_duration_ms|number_format(1) }}ms</div></div>
+    <div class="card"><h3>Status</h3><div class="value" style="font-size:18px;color:var(--text)">{{ key.enabled ? 'active' : 'revoked' }}</div></div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Key details</h3>
+        <dl class="def-list">
+            <dt>ID</dt><dd>{{ key.id }}</dd>
+            <dt>Prefix</dt><dd class="mono">{{ key.tokenPrefix }}...</dd>
+            <dt>Team</dt><dd>{% if key.team %}<a href="{{ dash.turl('/dashboard/teams/' ~ key.team.id, dashboard_token|default('')) }}">{{ key.team.name }}</a>{% else %}none{% endif %}</dd>
+            <dt>Created</dt><dd>{{ key.createdAt ? key.createdAt|date('Y-m-d H:i:s') : '—' }}</dd>
+            <dt>Expires</dt><dd>{{ key.expiresAt ? key.expiresAt|date('Y-m-d H:i:s') : 'never' }}</dd>
+        </dl>
+    </div>
+    <div class="card">
+        <h3>Current period usage</h3>
+        <dl class="def-list">
+            <dt>Today / Requests</dt><dd>{{ usage_today.requests }}</dd>
+            <dt>Today / Tokens</dt><dd>{{ usage_today.tokens }}</dd>
+            <dt>Today / Cost</dt><dd>${{ usage_today.costUsd|number_format(6) }}</dd>
+            <dt>Month / Requests</dt><dd>{{ usage_month.requests }}</dd>
+            <dt>Month / Tokens</dt><dd>{{ usage_month.tokens }}</dd>
+            <dt>Month / Cost</dt><dd>${{ usage_month.costUsd|number_format(6) }}</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Daily activity</h3>
+        {% set key_daily_max = daily_usage|length ? max(daily_usage|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in daily_usage %}
+                <div class="chart-row">
+                    <div class="chart-label mono">{{ row.date }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ key_daily_max > 0 ? (row.requests / key_daily_max * 100) : 0 }}%;"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }} req</div>
+                </div>
+            {% else %}
+                <div class="muted">No daily usage yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Status distribution</h3>
+        {% set key_status_max = status_breakdown|length ? max(status_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in status_breakdown %}
+                {% set status_color = row.family starts with '2' ? 'var(--success)' : (row.family starts with '4' ? 'var(--warning)' : (row.family starts with '5' ? 'var(--danger)' : 'var(--primary)')) %}
+                <div class="chart-row">
+                    <div class="chart-label"><span class="badge badge-blue">{{ row.family }}</span></div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ key_status_max > 0 ? (row.requests / key_status_max * 100) : 0 }}%; --bar-color: {{ status_color }};"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No status data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Providers used</h3>
+        {% set key_provider_max = provider_breakdown|length ? max(provider_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in provider_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ key_provider_max > 0 ? (row.requests / key_provider_max * 100) : 0 }}%; --bar-color: var(--info);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No provider usage yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Model aliases used</h3>
+        {% set key_model_max = model_breakdown|length ? max(model_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in model_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ key_model_max > 0 ? (row.requests / key_model_max * 100) : 0 }}%; --bar-color: var(--primary);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No model usage yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="card">
+        <h3>Team attribution</h3>
+        {% set key_team_max = team_breakdown|length ? max(team_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in team_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.team_name ?: 'No team' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ key_team_max > 0 ? (row.requests / key_team_max * 100) : 0 }}%; --bar-color: var(--warning);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No team attribution yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Recent requests</h2>
+    <div class="card table-card">
+        <div class="table-scroll">
+        <table class="wide-table">
+            <thead><tr><th>Time</th><th>Alias</th><th>Resolved Model</th><th>Provider</th><th>Prompt</th><th>Comp.</th><th>Total</th><th>Cost</th><th>Duration</th><th>Status</th><th>Error</th></tr></thead>
+            <tbody>
+            {% for log in recent_logs %}
+                <tr>
+                    <td class="mono">{{ log.created_at|date('Y-m-d H:i:s') }}</td>
+                    <td>{{ log.model_alias }}</td>
+                    <td class="mono">{{ log.resolved_model ?: '—' }}</td>
+                    <td>{{ log.provider_name }}</td>
+                    <td>{{ log.prompt_tokens|number_format }}</td>
+                    <td>{{ log.completion_tokens|number_format }}</td>
+                    <td>{{ log.total_tokens|number_format }}</td>
+                    <td style="color:var(--yellow)">${{ log.cost_usd|number_format(6) }}</td>
+                    <td>{{ log.duration_ms ?: 0 }}ms</td>
+                    <td>{% if log.status_code >= 500 %}<span class="badge badge-red">{{ log.status_code }}</span>{% elseif log.status_code >= 400 %}<span class="badge badge-yellow">{{ log.status_code }}</span>{% else %}<span class="badge badge-green">{{ log.status_code }}</span>{% endif %}</td>
+                    <td class="mono" style="max-width:200px;white-space:normal;color:var(--text2)">{{ log.error ?: '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="11" style="padding:16px" class="muted">No requests yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

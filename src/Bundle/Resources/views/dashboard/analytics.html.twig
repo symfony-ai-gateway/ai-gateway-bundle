@@ -1,0 +1,121 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+
+{% block title %}AIGateway Dashboard — Analytics{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div>
+        <h1 class="page-title">Analytics</h1>
+        <div class="subtitle">Cross-cutting performance and usage analysis across the whole gateway.</div>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="card"><h3>Requests</h3><div class="value blue">{{ stats.total_requests|default(0)|number_format }}</div></div>
+    <div class="card"><h3>Prompt Tokens</h3><div class="value green">{{ stats.total_prompt_tokens|default(0)|number_format }}</div></div>
+    <div class="card"><h3>Completion Tokens</h3><div class="value green">{{ stats.total_completion_tokens|default(0)|number_format }}</div></div>
+    <div class="card"><h3>Cost</h3><div class="value yellow">${{ stats.total_cost|default(0)|number_format(4) }}</div></div>
+    <div class="card"><h3>Errors</h3><div class="value {% if (stats.total_errors|default(0)) > 0 %}red{% else %}green{% endif %}">{{ stats.total_errors|default(0)|number_format }}</div></div>
+    <div class="card"><h3>Avg Duration</h3><div class="value" style="color:var(--accent2)">{{ stats.avg_duration_ms|default(0)|number_format(1) }}ms</div></div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Daily usage</h3>
+        {% set analytics_daily_max = daily_usage|length ? max(daily_usage|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in daily_usage %}
+                <div class="chart-row">
+                    <div class="chart-label mono">{{ row.date }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ analytics_daily_max > 0 ? (row.requests / analytics_daily_max * 100) : 0 }}%;"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }} req · ${{ row.cost|number_format(2) }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No daily usage yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Status distribution</h3>
+        {% set analytics_status_max = status_breakdown|length ? max(status_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in status_breakdown %}
+                {% set status_color = row.family starts with '2' ? 'var(--success)' : (row.family starts with '4' ? 'var(--warning)' : (row.family starts with '5' ? 'var(--danger)' : 'var(--primary)')) %}
+                <div class="chart-row">
+                    <div class="chart-label"><span class="badge badge-blue">{{ row.family }}</span></div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ analytics_status_max > 0 ? (row.requests / analytics_status_max * 100) : 0 }}%; --bar-color: {{ status_color }};"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No status data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Provider distribution</h3>
+        {% set analytics_provider_max = provider_breakdown|length ? max(provider_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in provider_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ analytics_provider_max > 0 ? (row.requests / analytics_provider_max * 100) : 0 }}%; --bar-color: var(--info);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No provider data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Model distribution</h3>
+        {% set analytics_model_max = model_breakdown|length ? max(model_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in model_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ analytics_model_max > 0 ? (row.requests / analytics_model_max * 100) : 0 }}%; --bar-color: var(--primary);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No model data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Key distribution</h3>
+        {% set analytics_key_max = key_breakdown|length ? max(key_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in key_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.key_name ?: 'anonymous' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ analytics_key_max > 0 ? (row.requests / analytics_key_max * 100) : 0 }}%; --bar-color: var(--warning);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No key data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Team distribution</h3>
+        {% set analytics_team_max = team_breakdown|length ? max(team_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in team_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.team_name ?: 'No team' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ analytics_team_max > 0 ? (row.requests / analytics_team_max * 100) : 0 }}%; --bar-color: var(--success);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No team data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

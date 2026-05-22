@@ -1,0 +1,35 @@
+{
+    "name": "ai-gateway/ai-gateway-bundle",
+    "description": "Transparent AI gateway bundle for Symfony with auth, logging, model routing, and dashboard",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=8.3",
+        "doctrine/dbal": "^4.4",
+        "doctrine/doctrine-bundle": "^3.2",
+        "doctrine/orm": "^3.6",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/http-client": "^7.4 || ^8.0",
+        "symfony/twig-bundle": "^7.4 || ^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11"
+    },
+    "autoload": {
+        "psr-4": {
+            "AIGateway\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AIGateway\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "symfony": {
+            "bundle": "AIGateway\\Bundle\\AIGatewayBundle"
+        }
+    }
+}

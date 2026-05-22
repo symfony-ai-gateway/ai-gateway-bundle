@@ -1,0 +1,42 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — {{ action == 'new' ? 'New Model' : 'Edit Model' }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ action == 'new' ? 'Add Model' : 'Edit Model: ' ~ model.alias }}</h1>
+
+<div class="card">
+    <form method="POST">
+        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+        <div class="def-list" style="grid-template-columns:160px 1fr;gap:16px">
+            <dt><label for="alias">Alias</label></dt>
+            <dd><input type="text" id="alias" name="alias" required value="{{ model.alias ?? '' }}" placeholder="e.g. gpt_4o (underscores, no dots)" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></dd>
+
+            <dt><label for="provider_name">Provider</label></dt>
+            <dd>
+                <select id="provider_name" name="provider_name" required style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+                    {% set current_provider = model.provider_name ?? '' %}
+                    {% for p in providers %}
+                    <option value="{{ p.name }}" {{ current_provider == p.name ? 'selected' : '' }}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </dd>
+
+            <dt><label for="model">Model Name</label></dt>
+            <dd><input type="text" id="model" name="model" required value="{{ model.model ?? '' }}" placeholder="e.g. gpt-4o" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></dd>
+
+            <dt><label for="pricing_input">Input Price ($/M tokens)</label></dt>
+            <dd><input type="number" step="0.01" id="pricing_input" name="pricing_input" value="{{ model.pricing_input ?? 0 }}" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></dd>
+
+            <dt><label for="pricing_output">Output Price ($/M tokens)</label></dt>
+            <dd><input type="number" step="0.01" id="pricing_output" name="pricing_output" value="{{ model.pricing_output ?? 0 }}" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></dd>
+        </div>
+
+        <div style="margin-top:24px;display:flex;gap:12px">
+            <button type="submit" class="btn btn-primary">{{ action == 'new' ? 'Create Model' : 'Save Changes' }}</button>
+            <a href="{{ dash.turl('/dashboard/models', dashboard_token|default('')) }}" class="btn" style="background:var(--surface2)">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — New Model Chain{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h1 class="page-title">New Model Chain</h1>
+</div>
+
+<div class="card" style="max-width:720px">
+    <form method="POST" action="{{ dash.turl('/dashboard/chains/new', dashboard_token|default('')) }}" class="form-grid" style="grid-template-columns:1fr">
+        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+        <div class="field">
+            <label for="alias">Chain alias</label>
+            <input type="text" id="alias" name="alias" required placeholder="openai_fallback">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+            <a href="{{ dash.turl('/dashboard/chains', dashboard_token|default('')) }}" class="btn" style="background:var(--surface2);color:var(--text)">Cancel</a>
+            <button type="submit" class="btn btn-primary">Create Chain</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

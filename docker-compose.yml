@@ -1,0 +1,23 @@
+services:
+  ai-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-8080}:80"
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      APP_SECRET: ${APP_SECRET:-changeMeInProduction}
+      DASHBOARD_TOKEN: ${DASHBOARD_TOKEN:-replace-me-dashboard-token}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////runtime/data/auth.db}
+    volumes:
+      - gateway-data:/runtime/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/v1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  gateway-data:

@@ -1,0 +1,9 @@
+.git
+.github
+vendor
+var
+node_modules
+coverage
+.env.local
+.env.*.local
+docker-compose*.yml

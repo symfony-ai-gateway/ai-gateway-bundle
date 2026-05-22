@@ -1,0 +1,17 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — API Key Created{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h1 class="page-title">API Key Created</h1>
+</div>
+<div class="card">
+    <p class="muted" style="margin:0 0 16px;color:var(--warning)">Save this token now. It will not be shown again.</p>
+    <div style="padding:14px 16px;background:rgba(148,163,184,.08);border:1px solid var(--border);border-radius:14px;font-family:var(--mono);word-break:break-all">{{ raw_key }}</div>
+    <div style="margin-top:24px">
+        <a href="{{ dash.turl('/dashboard/keys', dashboard_token|default('')) }}" class="btn btn-primary">Back to keys</a>
+    </div>
+</div>
+{% endblock %}

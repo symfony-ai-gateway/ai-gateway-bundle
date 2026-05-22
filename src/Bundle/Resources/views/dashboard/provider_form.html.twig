@@ -1,0 +1,54 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — {{ action == 'new' ? 'New Provider' : 'Edit Provider' }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ action == 'new' ? 'Add Provider' : 'Edit Provider: ' ~ provider.name }}</h1>
+
+<div class="card">
+    <form method="POST">
+        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+        <div class="def-list" style="grid-template-columns:160px 1fr;gap:16px">
+            {% if action == 'new' %}
+            <dt><label for="name">Name</label></dt>
+            <dd><input type="text" id="name" name="name" required placeholder="e.g. openai" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></dd>
+            {% endif %}
+
+            <dt><label for="format">Format</label></dt>
+            <dd>
+                <select id="format" name="format" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+                    {% set current_format = provider.format ?? 'openai' %}
+                    <option value="openai" {{ current_format == 'openai' ? 'selected' : '' }}>openai — OpenAI-compatible (OpenAI, DeepSeek, Gemini, Groq, Bedrock, Mistral, Ollama…)</option>
+                    <option value="anthropic" {{ current_format == 'anthropic' ? 'selected' : '' }}>anthropic — Anthropic (Claude)</option>
+                </select>
+            </dd>
+
+            <dt><label for="api_key">API Key</label></dt>
+            <dd><input type="password" id="api_key" name="api_key" value="{{ provider.api_key ?? '' }}" placeholder="sk-..." style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:monospace"></dd>
+
+            <dt><label for="base_url">Base URL</label></dt>
+            <dd><input type="text" id="base_url" name="base_url" value="{{ provider.base_url ?? '' }}" placeholder="https://api.openai.com/v1 (leave empty for default)" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></dd>
+
+            <dt><label for="completions_path">Completions Path</label></dt>
+            <dd><input type="text" id="completions_path" name="completions_path" value="{{ provider.completions_path ?? '/chat/completions' }}" placeholder="/chat/completions" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></dd>
+        </div>
+
+        <div style="margin-top:24px;display:flex;gap:12px">
+            <button type="submit" class="btn btn-primary">{{ action == 'new' ? 'Create Provider' : 'Save Changes' }}</button>
+            <a href="{{ dash.turl('/dashboard/providers', dashboard_token|default('')) }}" class="btn" style="background:var(--surface2)">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+const formatDefaults = { openai: '/chat/completions', anthropic: '/v1/messages' };
+const format = document.getElementById('format');
+const path = document.getElementById('completions_path');
+if (format && path) {
+    format.addEventListener('change', () => {
+        path.value = formatDefaults[format.value] || '/chat/completions';
+    });
+}
+</script>
+{% endblock %}

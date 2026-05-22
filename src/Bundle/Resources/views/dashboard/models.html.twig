@@ -1,0 +1,48 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — Models{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h1 class="page-title">Models</h1>
+    <a href="{{ dash.turl('/dashboard/models/new', dashboard_token|default('')) }}" class="btn btn-primary">+ Add Model</a>
+</div>
+
+{% if models|length == 0 %}
+<div class="empty">
+    <h3>No models configured</h3>
+    <p>Add a model linked to one of your providers.</p>
+</div>
+{% else %}
+<div class="card table-card">
+    <div class="table-scroll">
+    <table>
+        <thead>
+            <tr><th>Alias</th><th>Model</th><th>Provider</th><th>Requests</th><th>Cost</th><th>Errors</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for m in models %}
+            <tr>
+                <td><a href="{{ dash.turl('/dashboard/models/' ~ m.alias, dashboard_token|default('')) }}"><strong>{{ m.alias }}</strong></a></td>
+                <td class="mono">{{ m.model }}</td>
+                <td><a href="{{ dash.turl('/dashboard/providers/' ~ m.provider_name, dashboard_token|default('')) }}">{{ m.provider_name }}</a></td>
+                <td>{{ m.stats.requests|default(0)|number_format }}</td>
+                <td style="color:var(--yellow)">${{ m.stats.cost|default(0)|number_format(4) }}</td>
+                <td>{{ m.stats.errors|default(0)|number_format }}</td>
+                <td>
+                    <a href="{{ dash.turl('/dashboard/models/' ~ m.alias, dashboard_token|default('')) }}">stats</a>
+                    <a href="{{ dash.turl('/dashboard/models/' ~ m.alias ~ '/edit', dashboard_token|default('')) }}" style="margin-left:8px">edit</a>
+                    <form method="POST" action="{{ dash.turl('/dashboard/models/' ~ m.alias ~ '/delete', dashboard_token|default('')) }}" style="display:inline;margin-left:8px" onsubmit="return confirm('Delete model {{ m.alias }}?')">
+                        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+                        <button type="submit" class="btn btn-danger" style="padding:2px 8px;font-size:12px">delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — Model Chains{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h1 class="page-title">Model Chains</h1>
+    <a href="{{ dash.turl('/dashboard/chains/new', dashboard_token|default('')) }}" class="btn btn-primary">New Chain</a>
+</div>
+
+{% if chains|length > 0 %}
+<div class="card table-card">
+    <div class="table-scroll">
+    <table>
+        <thead><tr><th>Alias</th><th>Steps</th><th>Requests</th><th>Cost</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+        {% for chain in chains %}
+        <tr>
+            <td><a href="{{ dash.turl('/dashboard/chains/' ~ chain.alias, dashboard_token|default('')) }}">{{ chain.alias }}</a></td>
+            <td>{{ chain.step_count }}</td>
+            <td>{{ chain.stats.requests|default(0)|number_format }}</td>
+            <td style="color:var(--yellow)">${{ chain.stats.cost|default(0)|number_format(4) }}</td>
+            <td class="mono">{{ chain.created_at|date('Y-m-d H:i') }}</td>
+            <td><a href="{{ dash.turl('/dashboard/chains/' ~ chain.alias, dashboard_token|default('')) }}" class="btn" style="background:var(--surface2);color:var(--text);padding:4px 12px;font-size:12px">Open</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="empty"><h3>No model chains yet</h3><p>Create a chain to define fallback across models.</p></div>
+{% endif %}
+{% endblock %}

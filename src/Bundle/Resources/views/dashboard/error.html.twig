@@ -1,0 +1,14 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — Error{% endblock %}
+
+{% block content %}
+<div class="empty">
+    <h3>Something went wrong</h3>
+    <p>{{ message }}</p>
+    <div style="margin-top:18px">
+        <a href="{{ dash.turl('/dashboard', dashboard_token|default('')) }}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

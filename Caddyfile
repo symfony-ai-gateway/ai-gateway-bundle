@@ -1,0 +1,5 @@
+:80 {
+	root * /runtime/public
+	encode zstd br gzip
+	php_server
+}

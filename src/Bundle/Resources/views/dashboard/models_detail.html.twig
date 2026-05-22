@@ -1,0 +1,198 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — Model {{ model.alias }}{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div>
+        <h1 class="page-title">Model: {{ model.alias }}</h1>
+        <div class="subtitle">Alias-level traffic, key/team attribution, cost profile, and chain usage visibility.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="{{ dash.turl('/dashboard/providers/' ~ model.provider_name, dashboard_token|default('')) }}" class="btn" style="background:var(--surface2);color:var(--text)">Provider: {{ model.provider_name }}</a>
+        <a href="{{ dash.turl('/dashboard/models/' ~ model.alias ~ '/edit', dashboard_token|default('')) }}" class="btn btn-primary">Edit</a>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="card"><h3>Requests</h3><div class="value blue">{{ model_stats.requests|number_format }}</div></div>
+    <div class="card"><h3>Tokens</h3><div class="value green">{{ model_stats.tokens|number_format }}</div></div>
+    <div class="card"><h3>Cost</h3><div class="value yellow">${{ model_stats.cost|number_format(4) }}</div></div>
+    <div class="card"><h3>Errors</h3><div class="value {% if model_stats.errors > 0 %}red{% else %}green{% endif %}">{{ model_stats.errors|number_format }}</div></div>
+    <div class="card"><h3>Avg Duration</h3><div class="value" style="color:var(--accent2)">{{ model_stats.avg_duration_ms|number_format(1) }}ms</div></div>
+    <div class="card"><h3>Remote Model</h3><div class="value" style="font-size:16px;color:var(--text)">{{ model.model }}</div></div>
+</div>
+
+<div class="card section">
+    <dl class="def-list">
+        <dt>Provider</dt><dd><a href="{{ dash.turl('/dashboard/providers/' ~ model.provider_name, dashboard_token|default('')) }}">{{ model.provider_name }}</a></dd>
+        <dt>Remote model</dt><dd class="mono">{{ model.model }}</dd>
+        <dt>Pricing</dt><dd>${{ model.pricing_input|number_format(2) }} / M input · ${{ model.pricing_output|number_format(2) }} / M output</dd>
+        <dt>Used in chains</dt><dd>{{ model_chains|length }}</dd>
+    </dl>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Daily activity</h3>
+        {% set model_daily_max = daily_usage|length ? max(daily_usage|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in daily_usage %}
+                <div class="chart-row">
+                    <div class="chart-label mono">{{ row.date }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ model_daily_max > 0 ? (row.requests / model_daily_max * 100) : 0 }}%;"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }} req · ${{ row.cost|number_format(2) }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No activity yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Status distribution</h3>
+        {% set model_status_max = status_breakdown|length ? max(status_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in status_breakdown %}
+                {% set status_color = row.family starts with '2' ? 'var(--success)' : (row.family starts with '4' ? 'var(--warning)' : (row.family starts with '5' ? 'var(--danger)' : 'var(--primary)')) %}
+                <div class="chart-row">
+                    <div class="chart-label"><span class="badge badge-blue">{{ row.family }}</span></div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ model_status_max > 0 ? (row.requests / model_status_max * 100) : 0 }}%; --bar-color: {{ status_color }};"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No status data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Requests by team</h3>
+        {% set model_team_max = team_breakdown|length ? max(team_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in team_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.team_name ?: 'No team' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ model_team_max > 0 ? (row.requests / model_team_max * 100) : 0 }}%; --bar-color: var(--info);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No team data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Requests by key</h3>
+        {% set model_key_max = key_breakdown|length ? max(key_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in key_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.key_name ?: 'anonymous' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ model_key_max > 0 ? (row.requests / model_key_max * 100) : 0 }}%; --bar-color: var(--warning);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No key data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card table-card">
+        <h3 style="padding:20px 20px 0">Teams</h3>
+        <div class="table-scroll">
+        <table>
+            <thead><tr><th>Teams</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>
+            <tbody>
+            {% for row in team_breakdown %}
+                <tr>
+                    <td>{% if row.team_id %}<a href="{{ dash.turl('/dashboard/teams/' ~ row.team_id, dashboard_token|default('')) }}">{{ row.team_name ?: 'No team' }}</a>{% else %}<span class="muted">No team</span>{% endif %}</td>
+                    <td>{{ row.requests|number_format }}</td>
+                    <td>{{ row.tokens|number_format }}</td>
+                    <td style="color:var(--yellow)">${{ row.cost|number_format(4) }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4" style="padding:16px" class="muted">No team data yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    <div class="card table-card">
+        <h3 style="padding:20px 20px 0">API Keys</h3>
+        <div class="table-scroll">
+        <table>
+            <thead><tr><th>API Keys</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>
+            <tbody>
+            {% for row in key_breakdown %}
+                <tr>
+                    <td>{% if row.key_id %}<a href="{{ dash.turl('/dashboard/keys/' ~ row.key_id, dashboard_token|default('')) }}">{{ row.key_name ?: 'anonymous' }}</a>{% else %}<span class="muted">anonymous</span>{% endif %}</td>
+                    <td>{{ row.requests|number_format }}</td>
+                    <td>{{ row.tokens|number_format }}</td>
+                    <td style="color:var(--yellow)">${{ row.cost|number_format(4) }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4" style="padding:16px" class="muted">No key data yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Chains using this model</h2>
+    <div class="card table-card">
+        <div class="table-scroll">
+        <table>
+            <thead><tr><th>Chain</th><th></th></tr></thead>
+            <tbody>
+            {% for chain in model_chains %}
+                <tr>
+                    <td><a href="{{ dash.turl('/dashboard/chains/' ~ chain.alias, dashboard_token|default('')) }}">{{ chain.alias }}</a></td>
+                    <td><a href="{{ dash.turl('/dashboard/chains/' ~ chain.alias, dashboard_token|default('')) }}">open →</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="2" style="padding:16px" class="muted">This model is not used in any chain.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Recent requests</h2>
+    <div class="card table-card">
+        <div class="table-scroll">
+        <table class="wide-table">
+            <thead><tr><th>Time</th><th>Alias</th><th>Resolved Model</th><th>Provider</th><th>API Key</th><th>Team</th><th>Prompt</th><th>Comp.</th><th>Total</th><th>Cost</th><th>Duration</th><th>Status</th><th>Error</th></tr></thead>
+            <tbody>
+            {% for log in recent_logs %}
+                <tr>
+                    <td class="mono">{{ log.created_at|date('Y-m-d H:i:s') }}</td>
+                    <td>{{ log.model_alias }}</td>
+                    <td class="mono">{{ log.resolved_model ?: '—' }}</td>
+                    <td>{{ log.provider_name }}</td>
+                    <td>{% if log.key_id %}<a href="{{ dash.turl('/dashboard/keys/' ~ log.key_id, dashboard_token|default('')) }}">{{ log.key_name ?: 'anonymous' }}</a>{% else %}<span class="muted">anonymous</span>{% endif %}</td>
+                    <td>{% if log.team_id %}<a href="{{ dash.turl('/dashboard/teams/' ~ log.team_id, dashboard_token|default('')) }}">{{ log.team_name ?: 'team #' ~ log.team_id }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{{ log.prompt_tokens|number_format }}</td>
+                    <td>{{ log.completion_tokens|number_format }}</td>
+                    <td>{{ log.total_tokens|number_format }}</td>
+                    <td style="color:var(--yellow)">${{ log.cost_usd|number_format(6) }}</td>
+                    <td>{{ log.duration_ms ?: 0 }}ms</td>
+                    <td>{% if log.status_code >= 500 %}<span class="badge badge-red">{{ log.status_code }}</span>{% elseif log.status_code >= 400 %}<span class="badge badge-yellow">{{ log.status_code }}</span>{% else %}<span class="badge badge-green">{{ log.status_code }}</span>{% endif %}</td>
+                    <td class="mono" style="max-width:200px;white-space:normal;color:var(--text2)">{{ log.error ?: '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="13" style="padding:16px" class="muted">No traffic yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — {{ action == 'new' ? 'New API Key' : 'Edit API Key' }}{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h1 class="page-title">{{ action == 'new' ? 'Create API Key' : 'Edit API Key' }}</h1>
+</div>
+
+{% if errors is defined and errors|length > 0 %}
+<div class="alert">
+    <strong>Validation errors:</strong>
+    <ul>
+    {% for error in errors %}
+        <li>{{ error }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if teams|length == 0 and action == 'new' %}
+<div class="empty">
+    <h3>Create a team first</h3>
+    <p>You need at least one team before creating API keys.</p>
+    <div style="margin-top:16px"><a href="{{ dash.turl('/dashboard/teams/new', dashboard_token|default('')) }}" class="btn btn-primary">Create Team</a></div>
+</div>
+{% else %}
+<div class="card">
+    <form method="POST" class="form-grid" style="grid-template-columns:1fr" action="{{ dash.turl(action == 'new' ? '/dashboard/keys/new' : '/dashboard/keys/' ~ key.id ~ '/edit', dashboard_token|default('')) }}">
+        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+
+        <div class="field">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required value="{{ submitted.name ?? '' }}" placeholder="e.g. Frontend App">
+        </div>
+
+        {% if action == 'new' %}
+        <div class="field">
+            <label for="team_id">Team</label>
+            <select id="team_id" name="team_id">
+                {% for t in teams %}
+                <option value="{{ t.id }}" {% if (submitted.team_id ?? '') == t.id %}selected{% endif %}>{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="field">
+            <label for="models">Models (comma-separated, empty = inherit from team)</label>
+            <input type="text" id="models" name="models" value="{{ submitted.models ?? '' }}" placeholder="{{ model_aliases|join(', ') }}">
+        </div>
+
+        <div class="field">
+            <label for="budget_per_day">Budget / Day (USD)</label>
+            <input type="number" step="0.01" id="budget_per_day" name="budget_per_day" value="{{ submitted.budget_per_day ?? '' }}" placeholder="Inherit from team">
+        </div>
+
+        <div class="field">
+            <label for="budget_per_month">Budget / Month (USD)</label>
+            <input type="number" step="0.01" id="budget_per_month" name="budget_per_month" value="{{ submitted.budget_per_month ?? '' }}" placeholder="Inherit from team">
+        </div>
+
+        <div class="field">
+            <label for="rate_limit">Rate Limit (req/min)</label>
+            <input type="number" id="rate_limit" name="rate_limit" value="{{ submitted.rate_limit ?? '' }}" placeholder="Inherit from team">
+        </div>
+
+        <div class="field">
+            <label for="rate_limit_per_day">Rate Limit (req/day)</label>
+            <input type="number" id="rate_limit_per_day" name="rate_limit_per_day" value="{{ submitted.rate_limit_per_day ?? '' }}" placeholder="Inherit from team">
+        </div>
+
+        <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
+            <button type="submit" class="btn btn-primary">{{ action == 'new' ? 'Create Key' : 'Save Changes' }}</button>
+            <a href="{{ dash.turl('/dashboard/keys', dashboard_token|default('')) }}" class="btn" style="background:var(--surface2)">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — API Keys{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h1 class="page-title">API Keys</h1>
+    <a href="{{ dash.turl('/dashboard/keys/new', dashboard_token|default('')) }}" class="btn btn-primary">+ New Key</a>
+</div>
+
+<div class="card table-card">
+    <div class="table-scroll">
+    <table>
+        <thead><tr><th>Name</th><th>Prefix</th><th>Team</th><th>Requests</th><th>Cost</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+        {% for key in keys %}
+            <tr>
+                <td><a href="{{ dash.turl('/dashboard/keys/' ~ key.id, dashboard_token|default('')) }}">{{ key.name }}</a></td>
+                <td class="mono">{{ key.tokenPrefix }}...</td>
+                <td>{{ key.teamId and team_names[key.teamId] is defined ? team_names[key.teamId] : 'none' }}</td>
+                <td>{{ key_stats[key.id].requests|default(0)|number_format }}</td>
+                <td style="color:var(--yellow)">${{ key_stats[key.id].cost|default(0)|number_format(4) }}</td>
+                <td>{{ key.enabled ? 'active' : 'revoked' }}</td>
+                <td>{{ key.createdAt ? key.createdAt|date('Y-m-d H:i') : '—' }}</td>
+                <td><a href="{{ dash.turl('/dashboard/keys/' ~ key.id, dashboard_token|default('')) }}">view →</a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="8" style="padding:16px;color:var(--text2)">No keys yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

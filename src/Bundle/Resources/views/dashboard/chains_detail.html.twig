@@ -1,0 +1,259 @@
+{% extends "@AIGateway/dashboard/base.html.twig" %}
+{% import "@AIGateway/dashboard/base.html.twig" as dash %}
+
+{% block title %}AIGateway Dashboard — Chain {{ chain.alias }}{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div>
+        <h1 class="page-title">Model Chain: {{ chain.alias }}</h1>
+        <div class="subtitle">Fallback chain usage, downstream provider usage, resolved model distribution, and caller attribution.</div>
+    </div>
+    <form method="POST" action="{{ dash.turl('/dashboard/chains/' ~ chain.alias ~ '/delete', dashboard_token|default('')) }}" onsubmit="return confirm('Delete this model chain?')">
+        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+        <button class="btn btn-danger" type="submit">Delete</button>
+    </form>
+</div>
+
+<div class="metric-grid">
+    <div class="card"><h3>Requests</h3><div class="value blue">{{ chain_stats.requests|number_format }}</div></div>
+    <div class="card"><h3>Tokens</h3><div class="value green">{{ chain_stats.tokens|number_format }}</div></div>
+    <div class="card"><h3>Cost</h3><div class="value yellow">${{ chain_stats.cost|number_format(4) }}</div></div>
+    <div class="card"><h3>Errors</h3><div class="value {% if chain_stats.errors > 0 %}red{% else %}green{% endif %}">{{ chain_stats.errors|number_format }}</div></div>
+    <div class="card"><h3>Avg Duration</h3><div class="value" style="color:var(--accent2)">{{ chain_stats.avg_duration_ms|number_format(1) }}ms</div></div>
+    <div class="card"><h3>Steps</h3><div class="value" style="color:var(--accent2)">{{ steps|length }}</div></div>
+</div>
+
+<form method="POST" action="{{ dash.turl('/dashboard/chains/' ~ chain.alias ~ '/weights/save', dashboard_token|default('')) }}" class="card section" style="padding:0;overflow:hidden" id="weightsForm">
+    <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+    <div class="table-scroll">
+    <table>
+        <thead><tr><th>Priority</th><th>Model alias</th><th>Weight</th><th></th></tr></thead>
+        <tbody>
+        {% for step in steps %}
+            <tr data-priority="{{ step.priority }}">
+                <td>{{ step.priority }} <span class="muted priority-total" data-priority-total="{{ step.priority }}"></span></td>
+                <td><a href="{{ dash.turl('/dashboard/models/' ~ step.model_alias, dashboard_token|default('')) }}">{{ step.model_alias }}</a></td>
+                <td style="min-width:260px">
+                    <input type="range" min="0" max="100" name="weights[{{ step.id }}]" value="{{ step.weight }}" data-weight-slider data-priority="{{ step.priority }}" style="width:180px;vertical-align:middle">
+                    <strong><span data-weight-value="{{ step.id }}">{{ step.weight }}</span>%</strong>
+                </td>
+                <td>
+                    <button class="btn" type="submit" form="remove-step-{{ step.id }}" style="background:var(--surface2);color:#f87171;padding:3px 12px;font-size:12px" onclick="return confirm('Remove this step?')">Remove</button>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="4" style="padding:16px" class="muted">No steps yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if steps|length > 0 %}
+    <div style="padding:16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" type="submit">Save weights</button>
+    </div>
+    {% endif %}
+</form>
+
+{% for step in steps %}
+<form id="remove-step-{{ step.id }}" method="POST" action="{{ dash.turl('/dashboard/chains/steps/' ~ step.id ~ '/remove', dashboard_token|default('')) }}">
+    <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+</form>
+{% endfor %}
+
+<div class="card section">
+    <h3 style="margin-bottom:10px">Add step</h3>
+    <form method="POST" action="{{ dash.turl('/dashboard/chains/' ~ chain.alias ~ '/steps/add', dashboard_token|default('')) }}" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <input type="hidden" name="token" value="{{ dashboard_token|default('') }}">
+        <div class="field" style="min-width:240px">
+            <label>Model</label>
+            <select name="model_alias" required>
+                {% for m in models %}
+                    <option value="{{ m.alias }}">{{ m.alias }} → {{ m.provider_name }}/{{ m.model }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field"><label>Priority</label><input type="number" min="1" name="priority" value="1"></div>
+        <div class="field"><label>Weight</label><input type="range" min="0" max="100" name="weight" value="100" oninput="document.getElementById('newWeightValue').textContent=this.value" style="width:160px"><strong> <span id="newWeightValue">100</span>%</strong></div>
+        <button class="btn btn-primary" type="submit">Add step</button>
+    </form>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Daily activity</h3>
+        {% set chain_daily_max = daily_usage|length ? max(daily_usage|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in daily_usage %}
+                <div class="chart-row">
+                    <div class="chart-label mono">{{ row.date }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ chain_daily_max > 0 ? (row.requests / chain_daily_max * 100) : 0 }}%;"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }} req · ${{ row.cost|number_format(2) }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No activity yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Status distribution</h3>
+        {% set chain_status_max = status_breakdown|length ? max(status_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in status_breakdown %}
+                {% set status_color = row.family starts with '2' ? 'var(--success)' : (row.family starts with '4' ? 'var(--warning)' : (row.family starts with '5' ? 'var(--danger)' : 'var(--primary)')) %}
+                <div class="chart-row">
+                    <div class="chart-label"><span class="badge badge-blue">{{ row.family }}</span></div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ chain_status_max > 0 ? (row.requests / chain_status_max * 100) : 0 }}%; --bar-color: {{ status_color }};"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No status data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Providers used</h3>
+        {% set chain_provider_max = provider_breakdown|length ? max(provider_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in provider_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ chain_provider_max > 0 ? (row.requests / chain_provider_max * 100) : 0 }}%; --bar-color: var(--info);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No provider data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Resolved models used</h3>
+        {% set chain_resolved_max = resolved_model_breakdown|length ? max(resolved_model_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in resolved_model_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.label }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ chain_resolved_max > 0 ? (row.requests / chain_resolved_max * 100) : 0 }}%; --bar-color: var(--success);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No resolved model data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 section">
+    <div class="card">
+        <h3>Top API keys</h3>
+        {% set chain_key_max = key_breakdown|length ? max(key_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in key_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.key_name ?: 'anonymous' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ chain_key_max > 0 ? (row.requests / chain_key_max * 100) : 0 }}%; --bar-color: var(--warning);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No key data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Top teams</h3>
+        {% set chain_team_max = team_breakdown|length ? max(team_breakdown|map(v => v.requests)) : 1 %}
+        <div class="chart-list">
+            {% for row in team_breakdown %}
+                <div class="chart-row">
+                    <div class="chart-label">{{ row.team_name ?: 'No team' }}</div>
+                    <div class="chart-track"><div class="chart-fill" style="width: {{ chain_team_max > 0 ? (row.requests / chain_team_max * 100) : 0 }}%; --bar-color: var(--primary);"></div></div>
+                    <div class="chart-meta">{{ row.requests|number_format }}</div>
+                </div>
+            {% else %}
+                <div class="muted">No team data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Recent requests</h2>
+    <div class="card table-card">
+        <div class="table-scroll">
+        <table class="wide-table">
+            <thead><tr><th>Time</th><th>Alias</th><th>Resolved Model</th><th>Provider</th><th>API Key</th><th>Team</th><th>Prompt</th><th>Comp.</th><th>Total</th><th>Cost</th><th>Duration</th><th>Status</th><th>Error</th></tr></thead>
+            <tbody>
+            {% for log in recent_logs %}
+                <tr>
+                    <td class="mono">{{ log.created_at|date('Y-m-d H:i:s') }}</td>
+                    <td>{{ log.model_alias }}</td>
+                    <td class="mono">{{ log.resolved_model ?: '—' }}</td>
+                    <td>{{ log.provider_name }}</td>
+                    <td>{% if log.key_id %}<a href="{{ dash.turl('/dashboard/keys/' ~ log.key_id, dashboard_token|default('')) }}">{{ log.key_name ?: 'anonymous' }}</a>{% else %}<span class="muted">anonymous</span>{% endif %}</td>
+                    <td>{% if log.team_id %}<a href="{{ dash.turl('/dashboard/teams/' ~ log.team_id, dashboard_token|default('')) }}">{{ log.team_name ?: 'team #' ~ log.team_id }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{{ log.prompt_tokens|number_format }}</td>
+                    <td>{{ log.completion_tokens|number_format }}</td>
+                    <td>{{ log.total_tokens|number_format }}</td>
+                    <td style="color:var(--yellow)">${{ log.cost_usd|number_format(6) }}</td>
+                    <td>{{ log.duration_ms ?: 0 }}ms</td>
+                    <td>{% if log.status_code >= 500 %}<span class="badge badge-red">{{ log.status_code }}</span>{% elseif log.status_code >= 400 %}<span class="badge badge-yellow">{{ log.status_code }}</span>{% else %}<span class="badge badge-green">{{ log.status_code }}</span>{% endif %}</td>
+                    <td class="mono" style="max-width:200px;white-space:normal;color:var(--text2)">{{ log.error ?: '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="13" style="padding:16px" class="muted">No chain traffic yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-weight-slider]').forEach(slider => {
+  slider.addEventListener('input', () => normalizePriority(slider));
+});
+
+function normalizePriority(changed) {
+  const priority = changed.dataset.priority;
+  const sliders = [...document.querySelectorAll(`[data-weight-slider][data-priority="${priority}"]`)];
+  const changedValue = Number(changed.value);
+  const others = sliders.filter(slider => slider !== changed);
+  const remaining = Math.max(0, 100 - changedValue);
+  const otherTotal = others.reduce((sum, slider) => sum + Number(slider.value), 0);
+
+  if (others.length > 0) {
+    let assigned = 0;
+    others.forEach((slider, index) => {
+      const next = index === others.length - 1
+        ? remaining - assigned
+        : Math.round((otherTotal > 0 ? Number(slider.value) / otherTotal : 1 / others.length) * remaining);
+      slider.value = Math.max(0, Math.min(100, next));
+      assigned += Number(slider.value);
+    });
+  }
+
+  updateWeightLabels();
+}
+
+function updateWeightLabels() {
+  const totals = {};
+  document.querySelectorAll('[data-weight-slider]').forEach(slider => {
+    const match = slider.name.match(/\[(\d+)\]/);
+    if (match) document.querySelector(`[data-weight-value="${match[1]}"]`).textContent = slider.value;
+    totals[slider.dataset.priority] = (totals[slider.dataset.priority] || 0) + Number(slider.value);
+  });
+  document.querySelectorAll('[data-priority-total]').forEach(el => {
+    const total = totals[el.dataset.priorityTotal] || 0;
+    el.textContent = `(${total}%)`;
+    el.style.color = total === 100 ? 'var(--green)' : 'var(--yellow)';
+  });
+}
+
+updateWeightLabels();
+</script>
+{% endblock %}
